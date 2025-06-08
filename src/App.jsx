@@ -13,7 +13,7 @@ function App() {
       ) : (
         <div>
           <h2>Wybrano: {selectedUser.displayName}</h2>
-          {/* Tutaj w przyszłości będzie czat */}
+          
           <button onClick={() => setSelectedUser(null)}>Wróć do listy</button>
         </div>
       )}
