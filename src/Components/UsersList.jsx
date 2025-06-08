@@ -9,36 +9,43 @@ export default function UsersList({ onSelectUser }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setCurrentUserId(user.uid);
-        const usersRef = collection(db, "users");
-        const snapshot = await getDocs(usersRef);
-        const usersList = [];
-
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          if (data.uid !== user.uid) {
-            usersList.push(data);
-          }
-        });
-
-        setUsers(usersList);
+        fetchUsers(user.uid);
       } else {
         setCurrentUserId(null);
         setUsers([]);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  if (loading) return <p>Ładowanie użytkowników...</p>;
+  async function fetchUsers(currentUid) {
+    try {
+      const usersRef = collection(db, "users");
+      const snapshot = await getDocs(usersRef);
+      const usersList = [];
 
-  if (!currentUserId) {
-    return <p>Zaloguj się, aby zobaczyć listę użytkowników.</p>;
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.uid !== currentUid) {
+          usersList.push({ id: doc.id, ...data });
+        }
+      });
+
+      setUsers(usersList);
+    } catch (err) {
+      console.error("Błąd przy pobieraniu użytkowników:", err);
+    } finally {
+      setLoading(false);
+    }
   }
+
+  if (loading) return <p>Ładowanie użytkowników...</p>;
+  if (!currentUserId) return <p>Zaloguj się, aby zobaczyć listę użytkowników.</p>;
 
   return (
     <div>
@@ -46,18 +53,8 @@ export default function UsersList({ onSelectUser }) {
       <ul>
         {users.length === 0 && <li>Brak innych użytkowników</li>}
         {users.map((user) => (
-          <li
-            key={user.uid}
-            style={{ cursor: "pointer", marginBottom: "10px" }}
-            onClick={() => onSelectUser(user)}
-          >
-            <img
-              src={user.photoURL}
-              alt={user.displayName}
-              width={30}
-              height={30}
-              style={{ borderRadius: "50%", marginRight: "10px" }}
-            />
+          <li key={user.id} onClick={() => onSelectUser(user)}>
+            <img src={user.photoURL} alt={user.displayName} width={30} height={30} />
             {user.displayName}
           </li>
         ))}
