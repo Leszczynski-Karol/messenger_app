@@ -1,29 +1,40 @@
 import React, { useEffect, useState } from "react";
 import { db, auth } from "../firebase";
 import { collection, getDocs } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 
 export default function UsersList({ onSelectUser }) {
   const [users, setUsers] = useState([]);
-  const currentUserId = auth.currentUser?.uid;
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchUsers() {
-      const usersRef = collection(db, "users");
-      const querySnapshot = await getDocs(usersRef);
-      const usersList = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.uid !== currentUserId) {  // filtrujemy aktualnego użytkownika
-          usersList.push(data);
-        }
-      });
-      setUsers(usersList);
-    }
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setCurrentUserId(user.uid);
+        const usersRef = collection(db, "users");
+        const snapshot = await getDocs(usersRef);
+        const usersList = [];
 
-    if (currentUserId) {
-      fetchUsers();
-    }
-  }, [currentUserId]);
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.uid !== user.uid) {
+            usersList.push(data);
+          }
+        });
+
+        setUsers(usersList);
+      } else {
+        setCurrentUserId(null);
+        setUsers([]);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  if (loading) return <p>Ładowanie użytkowników...</p>;
 
   if (!currentUserId) {
     return <p>Zaloguj się, aby zobaczyć listę użytkowników.</p>;
